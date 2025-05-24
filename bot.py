@@ -1,10 +1,10 @@
 import discord
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from dotenv import load_dotenv
 from discord.ext import tasks
 from holiday_fetcher import get_upcoming_holidays
-from zoneinfo import ZoneInfo  # Nur ab Python 3.9+
+from zoneinfo import ZoneInfo  # Python 3.9+
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -17,19 +17,29 @@ client = discord.Client(intents=intents)
 async def daily_feiertags_check():
     await client.wait_until_ready()
     now_berlin = datetime.now(ZoneInfo("Europe/Berlin"))
+
+    # Nur um 08:00 Uhr Berliner Zeit ausführen
     if now_berlin.hour == 8 and now_berlin.minute == 0:
         channel = client.get_channel(CHANNEL_ID)
-        holidays = get_upcoming_holidays(["DE", "US"], days_ahead=2)
-        if holidays:
-            msg_lines = ["**Feiertags-Erinnerung in 2 Tagen:**"]
-            for code, local, eng, date_str in holidays:
+
+        # Erinnerung 2 Tage vorher
+        upcoming = get_upcoming_holidays(["DE", "US"], days_ahead=2)
+        if upcoming:
+            msg_lines = ["📌 **Feiertags-Erinnerung in 2 Tagen:**"]
+            for code, local, eng, date_str in upcoming:
                 flag = ":flag_de:" if code == "DE" else ":flag_us:"
                 msg_lines.append(f"{flag} **{local}** ({eng}) – am {date_str}")
-            msg = "\n".join(msg_lines)
-        else:
-            msg = "In 2 Tagen ist kein Feiertag in Deutschland oder den USA."
+            await channel.send("\n".join(msg_lines))
 
-        await channel.send(msg)
+        # Hinweis am Feiertag selbst
+        today = get_upcoming_holidays(["DE", "US"], days_ahead=0)
+        if today:
+            msg_lines = ["⚠️ **Bitte beachten: Heute ist ein Feiertag!**"]
+            for code, local, eng, date_str in today:
+                flag = ":flag_de:" if code == "DE" else ":flag_us:"
+                msg_lines.append(f"{flag} **{local}** ({eng}) – heute ({date_str})")
+            msg_lines.append("🏢 **Hinweis:** Heute kann es zu eingeschränktem oder gar keinem Betrieb kommen.")
+            await channel.send("\n".join(msg_lines))
 
 @client.event
 async def on_ready():
@@ -44,13 +54,12 @@ async def on_message(message):
     if message.content.lower() == "!feiertag":
         holidays = get_upcoming_holidays(["DE", "US"], days_ahead=2)
         if holidays:
-            msg_lines = ["**Feiertags-Erinnerung in 2 Tagen:**"]
+            msg_lines = ["📌 **Feiertags-Erinnerung in 2 Tagen:**"]
             for code, local, eng, date_str in holidays:
                 flag = ":flag_de:" if code == "DE" else ":flag_us:"
                 msg_lines.append(f"{flag} **{local}** ({eng}) – am {date_str}")
-            msg = "\n".join(msg_lines)
         else:
-            msg = "In 2 Tagen ist kein Feiertag in Deutschland oder den USA."
-        await message.channel.send(msg)
+            msg_lines = ["In 2 Tagen ist kein Feiertag in Deutschland oder den USA."]
+        await message.channel.send("\n".join(msg_lines))
 
 client.run(TOKEN)
