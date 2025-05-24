@@ -10,7 +10,10 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 
+# WICHTIG: Intent für message_content aktivieren
 intents = discord.Intents.default()
+intents.message_content = True
+
 client = discord.Client(intents=intents)
 
 @tasks.loop(minutes=1)
@@ -78,5 +81,3 @@ async def on_message(message):
             response_lines.append("📅 In den nächsten 3 Tagen ist kein Feiertag in Deutschland oder den USA.")
 
         await message.channel.send("\n".join(response_lines))
-
-client.run(TOKEN)
